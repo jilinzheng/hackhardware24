@@ -1,14 +1,10 @@
 import sys
-
 # ruff: noqa: E402
 sys.path.append("")
-
 from micropython import const
-
 import asyncio
 import aioble
 import bluetooth
-
 import random
 import struct
 import machine
@@ -33,23 +29,29 @@ temp_characteristic = aioble.Characteristic(
 )
 aioble.register_services(temp_service)
 
-
-# Helper to encode the temperature characteristic encoding (sint16, hundredths of a degree).
-def _encode_temperature(temp_deg_c):
-    return struct.pack("<h", int(temp_deg_c))
-
+def debounce(pin):
+    stable_time = 10  # Time in milliseconds to check for stable state
+    current_value = pin.value()
+    
+    # Wait for the pin value to stabilize
+    for _ in range(stable_time):
+        if pin.value() != current_value:
+            return False  # If the value changes during the debounce period, return False
+        time.sleep_ms(1)
+    
+    return True  # If stable for the entire time, return True
 
 # This would be periodically polling a hardware sensor.
 async def sensor_task():
+    button = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)
     t = 0
     while True:
-        print(f"new data to be sent: {_encode_temperature(t)}")
-        temp_characteristic.write(_encode_temperature(t), send_update=True)
-        #temp_characteristic.write(t,send_update=True)
-        #t += random.uniform(-0.5, 0.5)
-        t += 1
-        #time.sleep(1)
-        await asyncio.sleep(1)
+        if button.value() == 0:
+            if debounce(button):
+                t += 1
+                print(f"new data to be sent: {t}")
+                temp_characteristic.write(str(t), send_update=True)
+        await asyncio.sleep(0.25)
 
 
 # Serially wait for connections.
