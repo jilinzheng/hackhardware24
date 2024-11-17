@@ -30,24 +30,22 @@ aioble.register_services(temp_service)
 
 # SENSORS/PINS
 LED = machine.Pin("LED", machine.Pin.OUT)
-DPAD_UP = None
-DPAD_DOWN = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)
-DPAD_LEFT = None
-DPAD_RIGHT = None
-TRIGGER = None
-IMU_X = None
-IMU_Y = None
-IMU_Z = None
+DPAD_UP = machine.Pin(6, machine.Pin.IN, machine.Pin.PULL_UP)
+DPAD_DOWN = machine.Pin(7, machine.Pin.IN, machine.Pin.PULL_UP)
+DPAD_LEFT = machine.Pin(8, machine.Pin.IN, machine.Pin.PULL_UP)
+DPAD_RIGHT = machine.Pin(9, machine.Pin.IN, machine.Pin.PULL_UP)
+TRIGGER = machine.Pin(10, machine.Pin.IN, machine.Pin.PULL_UP)
 
 # SENSOR VALUES
-DPAD_UP_val,DPAD_DOWN_val,DPAD_LEFT_val,DPAD_RIGHT_val,TRIGGER_val,IMU_X_val,IMU_Y_val,IMU_Z_val = 0,0,0,0,0,0,0,0
+DPAD_UP_val,DPAD_DOWN_val,DPAD_LEFT_val,DPAD_RIGHT_val,TRIGGER_val = 1,1,1,1,1
 
-# CHARACTERISTIC VALUE STRING
-char_value = f"{DPAD_UP_val} {DPAD_DOWN_val} {DPAD_LEFT_val} {DPAD_RIGHT_val} {TRIGGER_val} {IMU_X_val} {IMU_Y_val} {IMU_Z_val}"
+# get most recent sensor values
+def getSensorValues():
+    return " ".join([str(val) for val in [DPAD_UP_val,DPAD_DOWN_val,DPAD_LEFT_val,DPAD_RIGHT_val,TRIGGER_val]])
 
 # debounce DPAD_DOWN clicks
 def debounce(pin):
-    stable_time = 10  # Time in milliseconds to check for stable state
+    stable_time = 5  # Time in milliseconds to check for stable state
     current_value = pin.value()
     
     # Wait for the pin value to stabilize
@@ -61,29 +59,33 @@ def debounce(pin):
 
 # poll sensors
 async def sensor_task():
-    global DPAD_UP_val,DPAD_DOWN_val,DPAD_LEFT_val,DPAD_RIGHT_val,TRIGGER_val,IMU_X_val,IMU_Y_val,IMU_Z_val
+    global DPAD_UP_val,DPAD_DOWN_val,DPAD_LEFT_val,DPAD_RIGHT_val,TRIGGER_val
     while True:
         # DPAD
-        if debounce(DPAD_UP):
+        DPAD_UP_val,DPAD_DOWN_val,DPAD_LEFT_val,DPAD_RIGHT_val,TRIGGER_val = 1,1,1,1,1
+        if DPAD_UP.value() == 0 and debounce(DPAD_UP): 
             DPAD_UP_val = DPAD_UP.value()
-        if debounce(DPAD_DOWN):
+            temp_characteristic.write(getSensorValues(), send_update=True)
+        if DPAD_DOWN.value() == 0 and debounce(DPAD_DOWN):
             DPAD_DOWN_val = DPAD_DOWN.value()
-        if debounce(DPAD_LEFT):
+            temp_characteristic.write(getSensorValues(), send_update=True)
+        if DPAD_LEFT.value() == 0 and debounce(DPAD_LEFT):
             DPAD_LEFT_val = DPAD_LEFT.value()
-        if debounce(DPAD_RIGHT):
+            temp_characteristic.write(getSensorValues(), send_update=True)
+        if DPAD_RIGHT.value() == 0 and debounce(DPAD_RIGHT):
             DPAD_RIGHT_val = DPAD_RIGHT.value()
+            temp_characteristic.write(getSensorValues(), send_update=True)
         print(f"DPAD_UP_val = {DPAD_UP_val}, DPAD_DOWN_val = {DPAD_DOWN_val}, DPAD_LEFT_val = {DPAD_LEFT_val}, DPAD_RIGHT_val = {DPAD_RIGHT_val}")
 
         # TRIGGER
-        if debounce(TRIGGER):
+        if TRIGGER.value() == 0 and debounce(TRIGGER):
             TRIGGER_val = TRIGGER.value()
+            temp_characteristic.write(getSensorValues(), send_update=True)
         print(f"TRIGGER_val = {TRIGGER_val}")
 
-        # TODO: IMU
-
         # write to characteristic
-        temp_characteristic.write(char_value, send_update=True)
-        await asyncio.sleep(0.25)
+        temp_characteristic.write(getSensorValues(), send_update=True)
+        await asyncio.sleep(0.1)
 
 
 # serially wait for connections; no advertise while client connected
@@ -118,4 +120,3 @@ async def main():
 
 
 asyncio.run(main())
-

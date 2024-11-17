@@ -32,21 +32,19 @@ aioble.register_services(temp_service)
 LED = machine.Pin("LED", machine.Pin.OUT)
 JOYSTICK_X = machine.ADC(machine.Pin(27))
 JOYSTICK_Y = machine.ADC(machine.Pin(26))
-JOYSTICK_BUTTON = machine.Pin(19, machine.Pin.IN, machine.Pin.PULL_UP)
-TRIGGER = None
-IMU_X = None
-IMU_Y = None
-IMU_Z = None
+JOYSTICK_BUTTON = machine.Pin(22, machine.Pin.IN, machine.Pin.PULL_UP)
+TRIGGER = machine.Pin(7, machine.Pin.IN, machine.Pin.PULL_UP)
 
 # SENSOR VALUES
-JOYSTICK_X_val,JOYSTICK_Y_val,JOYSTICK_BUTTON_val,TRIGGER_val,IMU_X_val,IMU_Y_val,IMU_Z_val = 0,0,0,0,0,0,0,0
+JOYSTICK_X_val,JOYSTICK_Y_val,JOYSTICK_BUTTON_val,TRIGGER_val = 0,0,0,1
 
-# CHARACTERISTIC VALUE STRING
-char_value = f"{JOYSTICK_X_val} {JOYSTICK_Y_val} {JOYSTICK_BUTTON_val} {TRIGGER_val} {IMU_X_val} {IMU_Y_val} {IMU_Z_val}"
+# get most recent sensor values
+def getSensorValues():
+    return " ".join([str(val) for val in [JOYSTICK_X_val,JOYSTICK_Y_val,JOYSTICK_BUTTON_val,TRIGGER_val]])
 
 # debounce clicks
 def debounce(pin):
-    stable_time = 10  # Time in milliseconds to check for stable state
+    stable_time = 5  # Time in milliseconds to check for stable state
     current_value = pin.value()
     
     # Wait for the pin value to stabilize
@@ -60,8 +58,7 @@ def debounce(pin):
 
 # poll sensors
 async def sensor_task():
-    global JOYSTICK_X_val,JOYSTICK_Y_val,JOYSTICK_BUTTON_val,TRIGGER_val,IMU_X_val,IMU_Y_val,IMU_Z_val
-    t = 0
+    global JOYSTICK_X_val,JOYSTICK_Y_val,JOYSTICK_BUTTON_val,TRIGGER_val
     while True:
         # JOYSTICK
         JOYSTICK_X_val = int((JOYSTICK_X.read_u16() / (2**8)) * 10) / 10.0
@@ -70,16 +67,14 @@ async def sensor_task():
         print(f"JOYSTICK_X_val = {JOYSTICK_X_val}, JOYSTICK_Y_val = {JOYSTICK_Y_val}, JOYSTICK_BUTTON_val = {JOYSTICK_BUTTON_val}")
 
         # TRIGGER
-        if debounce(TRIGGER):
-            TRIGGER_val = TRIGGER.value()
+        # if TRIGGER.value() == 0 and debounce(TRIGGER):
+        TRIGGER_val = TRIGGER.value()
+            # temp_characteristic.write(getSensorValues(), send_update=True)
         print(f"TRIGGER_val = {TRIGGER_val}")
 
-        # TODO: IMU
-
         # write to characteristic
-        # print(char_value)
-        temp_characteristic.write(char_value, send_update=True)
-        await asyncio.sleep(0.25)
+        temp_characteristic.write(getSensorValues(), send_update=True)
+        await asyncio.sleep(0.1)
 
 
 # serially wait for connections; no advertise while client connected
